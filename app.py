@@ -137,6 +137,31 @@ def delete_todo(id):
     db.session.commit()
     return redirect(url_for('index'))
 
+@app.route('/api/edit/<int:id>', methods=['POST'])
+def api_edit_todo(id):
+    if 'user_id' not in session:
+        return jsonify({'status': 'error', 'message': '未登入'}), 403
+
+    todo = Todo.query.get_or_404(id)
+    if todo.user_id != session['user_id']:
+        return jsonify({'status': 'error', 'message': '無權限編輯此項目'}), 403
+
+    data = request.json
+    content = data.get('content')
+    due_date_str = data.get('due_date')
+
+    if not content:
+        return jsonify({'status': 'error', 'message': '待辦事項內容不能為空'}), 400
+
+    todo.content = content
+    todo.due_date = datetime.strptime(due_date_str, '%Y-%m-%d') if due_date_str else None
+
+    try:
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': '待辦事項已成功更新'})
+    except:
+        return jsonify({'status': 'error', 'message': '更新失敗'}), 500
+
 @app.route('/category/<string:category>', methods=['GET', 'POST'])
 def category_page(category):
     if 'user_id' not in session:
