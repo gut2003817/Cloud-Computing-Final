@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ category }} 待辦事項</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 600px;
+            margin-top: 50px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .list-group-item {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .list-group-item.completed {
+            text-decoration: line-through;
+            color: #6c757d;
+            background-color: #e9ecef;
+        }
+        .btn {
+            font-size: 0.9rem;
+        }
+        .input-group input, .input-group label {
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">{{ category }} 待辦事項</h1>
+        <form action="" method="POST" class="mb-3">
+            <div class="input-group mb-3">
+                <input type="text" name="content" class="form-control" placeholder="輸入待辦事項" required>
+            </div>
+            <div class="input-group mb-3">
+                <label for="due_date" class="form-label me-2">截止日期：</label>
+                <input type="date" name="due_date" class="form-control" id="due_date">
+            </div>
+            <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary">新增</button>
+            </div>
+        </form>
+
+        <ul class="list-group">
+            {% for todo in todos %}
+            <li class="list-group-item {% if todo.completed %}completed{% endif %}">
+                <span>
+                    {{ todo.content }}
+                    <small class="text-muted"> - {{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '無截止日期' }}</small>
+                </span>
+                <div>
+                    {% if not todo.completed %}
+                    <a href="/complete/{{ todo.id }}" class="btn btn-success btn-sm">完成</a>
+                    {% endif %}
+                    <a href="/delete/{{ todo.id }}" class="btn btn-danger btn-sm">刪除</a>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <div class="text-center mt-4">
+            <a href="/" class="btn btn-secondary">返回首頁</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const colorPicker = document.getElementById('bg-color-picker');
+            const body = document.body;
+        
+            // 從 LocalStorage 獲取背景顏色
+            const savedColor = localStorage.getItem('backgroundColor');
+            if (savedColor) {
+                body.style.backgroundColor = savedColor;
+                colorPicker.value = savedColor;
+            }
+        
+            // 實時更新背景顏色
+            colorPicker.addEventListener('input', function () {
+                const selectedColor = colorPicker.value;
+                body.style.backgroundColor = selectedColor;
+        
+                // 儲存顏色到 LocalStorage
+                localStorage.setItem('backgroundColor', selectedColor);
+            });
+        });
+    </script>
+</body>
+</html>
