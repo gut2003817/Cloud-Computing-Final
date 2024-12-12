@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
-import pandas as pd
+#import pandas as pd
 import io
 from flask import send_file, jsonify
 
@@ -94,7 +94,7 @@ def login():
 
             if upcoming_deadlines:
                 session['reminder'] = [
-                    f"{todo.content} 截止日期為 {todo.due_date.strftime('%Y-%m-%d')}"
+                    f"{todo.content} 截止日期為 {todo.due_date.strftime('%Y-%m-%d %H:%M:%S')}"
                     for todo in upcoming_deadlines
                 ]
             else:
@@ -115,14 +115,21 @@ def logout():
 def add_todo():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    content = request.form['content']
-    due_date_str = request.form.get('due_date')
-    category = request.form.get('category', '日常')
-    due_date = datetime.strptime(due_date_str, '%Y-%m-%d') if due_date_str else None
+    
+    content = request.form['content']  # 獲取待辦事項的內容
+    due_date_str = request.form.get('due_date')  # 獲取截止日期（包含時間）
+    category = request.form.get('category', '日常')  # 獲取分類，預設為 "日常"
+    
+    # 將日期字串轉換為 datetime 格式，解析包含時間的格式，否則設為 None
+    due_date = datetime.strptime(due_date_str, '%Y-%m-%dT%H:%M') if due_date_str else None
+    
+    # 建立新的待辦事項
     new_todo = Todo(content=content, due_date=due_date, user_id=session['user_id'], category=category)
-    db.session.add(new_todo)
-    db.session.commit()
-    return redirect(url_for('index'))
+    db.session.add(new_todo)  # 新增到資料庫
+    db.session.commit()  # 提交變更
+    
+    return redirect(url_for('index'))  # 重新導向到首頁
+
 
 # Delete Todo
 @app.route('/delete/<int:id>')
@@ -154,7 +161,7 @@ def api_edit_todo(id):
         return jsonify({'status': 'error', 'message': '待辦事項內容不能為空'}), 400
 
     todo.content = content
-    todo.due_date = datetime.strptime(due_date_str, '%Y-%m-%d') if due_date_str else None
+    todo.due_date = datetime.strptime(due_date_str, '%Y-%m-%dT%H:%M') if due_date_str else None
 
     try:
         db.session.commit()
@@ -176,13 +183,15 @@ def category_page(category):
     if request.method == 'POST':
         content = request.form['content']
         due_date_str = request.form.get('due_date')
-        due_date = datetime.strptime(due_date_str, '%Y-%m-%d') if due_date_str else None
+        # 使用正確的解析格式
+        due_date = datetime.strptime(due_date_str, '%Y-%m-%dT%H:%M') if due_date_str else None
         new_todo = Todo(content=content, due_date=due_date, user_id=user.id, category=category)
         db.session.add(new_todo)
         db.session.commit()
         return redirect(url_for('category_page', category=category))
 
     return render_template('category.html', todos=todos, username=user.username, category=category)
+
 
 @app.route('/complete/<int:id>')
 def complete_todo(id):
@@ -203,7 +212,7 @@ def export():
 
     todos = Todo.query.filter_by(user_id=session['user_id']).order_by(Todo.due_date.asc().nulls_last(), Todo.date_created.asc()).all()
     data = [{
-        '日期': todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '',
+        '日期': todo.due_date.strftime('%Y-%m-%d %H:%M:%S') if todo.due_date else '',
         '待辦事項': todo.content,
         '完成狀態': '已完成' if todo.completed else '未完成',
         '是否截止': '已截止' if todo.due_date and todo.due_date < datetime.utcnow() else '未截止'

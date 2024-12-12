@@ -1,32 +1,15 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <div class="row justify-content-center mt-5">
-        <div class="col-auto">
-            <a href="/category/考試" class="btn category-btn btn-primary mx-2 py-2 px-4">
-                考試
-            </a>
-        </div>
-        <div class="col-auto">
-            <a href="/category/作業" class="btn category-btn btn-success mx-2 py-2 px-4">
-                作業
-            </a>
-        </div>
-        <div class="col-auto">
-            <a href="/category/日常" class="btn category-btn btn-warning mx-2 py-2 px-4">
-                日常
-            </a>
-        </div>
-    </div>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>待辦事項清單</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-            body {
-                background-color: #ffffff; /* 默認顏色，會被 JavaScript 覆蓋 */
-                transition: background-color 0.3s ease; /* 添加平滑過渡效果 */
-            }      
+        body {
+            background-color: #ffffff; /* 默認顏色，會被 JavaScript 覆蓋 */
+            transition: background-color 0.3s ease; /* 添加平滑過渡效果 */
+        }      
         .container {
             margin-top: 50px;
             background-color: #ffffff;
@@ -49,92 +32,145 @@
             margin-bottom: 20px;
             border-radius: 10px;
         }
-        <style>
-            .overdue {
-                color: red;
-                font-weight: bold;
-            }
-        </style>
-        
+        .overdue {
+            color: red;
+            font-weight: bold;
+        }
+        .list-group-item.category-考試 {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        .list-group-item.category-作業 {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .list-group-item.category-日常 {
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+        }
+        .text-blue {
+            color: rgb(23, 113, 138);
+        }
+        .text-green {
+            color: rgb(45, 179, 63);
+        }
+        .text-Yellow {
+            color: rgb(204, 209, 57);
+        }
+        .btn-outline-purple {
+            color: #6f42c1;
+            border-color: #6f42c1;
+        }
+        .btn-outline-purple:hover {
+            background-color: #6f42c1;
+            color: #fff;
+        }
+        </style> 
     </style>
 </head>
 <body>
 
-    
     <div class="container">
         <img src="https://img.zuomeme.com/uploads/1693569081758172966967.jpg" alt="Header Image" class="header-image" style="display: block; margin: auto;width: 500pt; height: auto;">
         <h1 class="text-center mb-4">{{ username }} 的待辦事項清單</h1>
+    </div>
+
+    <div class="container">
+        <h3 class="text-center mb-4">新增待辦事項</h3>
+        <div class="row justify-content-center mt-5">
+            <div class="col-auto">
+                <a href="/category/作業" class="btn category-btn btn-success mx-2 py-2 px-4">
+                    作業
+                </a>
+            </div>
+            <div class="col-auto">
+                <a href="/category/考試" class="btn category-btn btn-primary mx-2 py-2 px-4">
+                    考試
+                </a>
+            </div>
+            <div class="col-auto">
+                <a href="/category/日常" class="btn category-btn btn-warning mx-2 py-2 px-4">
+                    日常
+                </a>
+            </div>
         </div>
-        
-        <div class="container">
-            <!-- 通知區塊 -->
-            {% if reminders %}
-            <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                <strong>提醒（2天內到期）：</strong>
-                <ul>
-                    {% for reminder in reminders %}
-                        <li>{{ reminder }}</li>
-                    {% endfor %}
-                </ul>
-                <!-- 使用 Bootstrap 的 text-center 讓按鈕居中 -->
-                <div class="text-center mt-2">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="alert" aria-label="Close">關閉提醒</button>
-                </div>
-            </div>
-            
-            {% endif %}
+    </div>   
+    
+    <hr class="my-4">   <!-- 添加垂直間距 -->
 
-        <form action="/add" method="POST" class="mb-3">
-            
-            <div class="input-group mb-2">
-                <input type="text" name="content" class="form-control" placeholder="輸入新的待辦事項" required>
-                <input type="hidden" name="user_id" value="1"> <!-- 假設使用者ID為1 -->
+    <div class="container">
+        <!-- 通知區塊 -->
+        <!-- {% if reminders %} -->
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <strong>提醒（2天內到期）：</strong>
+            <ul>
+                {% for reminder in reminders %}
+                    <li>{{ reminder }}</li>
+                {% endfor %}
+            </ul>
+            <!-- 使用 Bootstrap 的 text-center 讓按鈕居中 -->
+            <div class="text-center mt-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="alert" aria-label="Close">關閉提醒</button>
             </div>
-            <div class="input-group mb-3">
-                <label for="due_date" class="mr-2">選擇執行或截止日期：</label>
-                <input type="date" name="due_date" class="form-control" id="due_date" required>
-            </div>
-            <div class="d-flex justify-content-end mt-4">
-                <button type="submit" class="btn btn-primary">新增</button>
-            </div>
+        </div>
+        <!-- {% endif %} -->
 
-            <div class="mb-4 text-center">
-                <a href="/?category=all" class="btn btn-outline-primary {% if category == 'all' %}active{% endif %}">全部</a>
-                <a href="/?category=incomplete" class="btn btn-outline-warning {% if category == 'incomplete' %}active{% endif %}">未完成</a>
-                <a href="/?category=completed" class="btn btn-outline-success {% if category == 'completed' %}active{% endif %}">已完成</a>
-            </div>
-            
-        </form>
-        
-        <ul class="list-group">
-            {% for todo in todos %}
-                <li class="list-group-item todo-item {% if todo.completed %}completed{% endif %}">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <!-- 如果過期，事項名稱和日期都用紅色 -->
-                            <span class="{% if todo.is_overdue %}text-danger{% else %}text-body{% endif %}">
-                                {{ todo.content }}
-                                <!-- 過期顯示文字 -->
-                                {% if todo.is_overdue %}
-                                    <span class="ms-2">（已截止）</span>
-                                {% endif %}
-                            </span><br>
-                            <small class="{% if todo.is_overdue %}text-danger{% else %}text-muted{% endif %}">
-                                截止日期：{{ todo.due_date.strftime('%Y-%m-%d') }}
-                            </small>
+        <h3 class="text-center mb-4">待辦事項清單</h3>
+        <div class="text-center mb-4">
+            <a href="/?category=all" class="btn btn-outline-dark {% if category == 'all' %}active{% endif %}">全部</a>
+            <a href="/?category=incomplete" class="btn btn-outline-danger {% if category == 'incomplete' %}active{% endif %}">未完成</a>
+            <a href="/?category=completed" class="btn btn-outline-purple {% if category == 'completed' %}active{% endif %}">已完成</a>
+        </div>        
+
+        <!-- 使用 macro 抽取重複部分 -->
+        {% macro render_category(category_name, todos) %}
+        <div class="category">
+            <h3 class="
+            {% if category_name == '作業' %}text-green{% elif category_name == '考試' %}text-blue{% elif category_name == '日常' %}text-Yellow{% endif %}">
+            {{ category_name }}清單
+            </h3>
+            <ul class="list-group">
+                {% for todo in todos if todo.category == category_name %}
+                    <li class="list-group-item todo-item category-{{ category_name }} {% if todo.completed %}completed{% endif %}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <!-- 如果過期，事項名稱和日期都用紅色 -->
+                                <span class="{% if todo.is_overdue %}text-danger{% else %}text-body{% endif %}">
+                                    {{ todo.content }}
+                                    <!-- 過期顯示文字 -->
+                                    {% if todo.is_overdue %}
+                                        <span class="ms-2">（已截止）</span>
+                                    {% endif %}
+                                </span><br>
+                                <small class="{% if todo.is_overdue %}text-danger{% else %}text-muted{% endif %}">
+                                    截止日期：{{ todo.due_date.strftime('%Y-%m-%d %H:%M:%S') }}
+                                </small>
+                            </div>
+                            <div>
+                                <a href="/complete/{{ todo.id }}" class="btn btn-success btn-sm">
+                                    {{ '未完成' if todo.completed else '完成' }}
+                                </a>
+                                <a href="javascript:void(0);" class="btn btn-warning btn-sm edit-btn"
+                                data-id="{{ todo.id }}" data-content="{{ todo.content }}" 
+                                data-due-date="{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '' }}">
+                                    編輯
+                                </a>
+                                <a href="/delete/{{ todo.id }}" class="btn btn-danger btn-sm">刪除</a>
+                            </div>
                         </div>
-                        <div>
-                            <a href="/complete/{{ todo.id }}" class="btn btn-success btn-sm">{{ '未完成' if todo.completed else '完成' }}</a>
-                            <a href="javascript:void(0);" class="btn btn-warning btn-sm edit-btn" data-id="{{ todo.id }}" data-content="{{ todo.content }}" data-due-date="{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '' }}">編輯</a>
-                            <a href="/delete/{{ todo.id }}" class="btn btn-danger btn-sm">刪除</a>
-                        </div>
-                    </div>
-                </li>
-            {% endfor %}
-        </ul>
-        
-        
-        
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endmacro %}
+        <!-- 呼叫 macro 顯示每個類別 -->
+        {{ render_category('作業', todos) }}
+        <hr class="my-4">
+        {{ render_category('考試', todos) }}
+        <hr class="my-4">
+        {{ render_category('日常', todos) }}
+
+
         <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -151,7 +187,7 @@
                             </div>
                             <div class="mb-3">
                                 <label for="editDueDate" class="form-label">截止日期</label>
-                                <input type="date" class="form-control" id="editDueDate">
+                                <input type="datetime-local" class="form-control" id="editDueDate">
                             </div>
                         </form>
                     </div>
@@ -161,15 +197,14 @@
                     </div>
                 </div>
             </div>
-        </div>        
-        
-        
-        <div class="text-center mt-4">
-            <a href="/logout" class="btn btn-secondary mx-2">登出</a>
-            <a href="/export" class="btn btn-success mx-2">匯出Excel</a>
         </div>
 
+    </div>     
+    <div class="text-center mt-4">
+        <a href="/logout" class="btn btn-secondary mx-2">登出</a>
+        <a href="/export" class="btn btn-success mx-2">匯出Excel</a>
     </div>
+
     <script>
         // 打開模態框並填充表單
         document.querySelectorAll('.edit-btn').forEach(button => {
