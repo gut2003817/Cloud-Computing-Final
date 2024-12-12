@@ -23,10 +23,10 @@
     <title>待辦事項清單</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <style>
-        body {
-            background-color: #ffffff; /* 默認顏色，會被 JavaScript 覆蓋 */
-            transition: background-color 0.3s ease; /* 添加平滑過渡效果 */
-        }      
+            body {
+                background-color: #ffffff; /* 默認顏色，會被 JavaScript 覆蓋 */
+                transition: background-color 0.3s ease; /* 添加平滑過渡效果 */
+            }      
         .container {
             margin-top: 50px;
             background-color: #ffffff;
@@ -49,104 +49,92 @@
             margin-bottom: 20px;
             border-radius: 10px;
         }
-        .overdue {
-            color: red;
-            font-weight: bold;
-        }
-        .in-progress {
-            color: blue;
-            font-weight: bold;
-        }
-        .category-btn {
-            font-size: 1rem; /* 字型大小 */
-            font-weight: bold; /* 加粗 */
-            border-radius: 15px; /* 圓角 */
-            transition: all 0.3s ease; /* 添加平滑過渡效果 */
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* 陰影 */
-        }
-    
-        .category-btn:hover {
-            transform: translateY(-3px); /* 滑上效果 */
-            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15); /* 陰影加深 */
-        }
-    
-        .category-btn:active {
-            transform: translateY(1px); /* 點擊效果 */
-            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1); /* 按下時陰影變淺 */
-        }
-        .row {
-            margin-top: 50px; /* 與頁面頂部保持距離 */
-        }
-    </style>
+        <style>
+            .overdue {
+                color: red;
+                font-weight: bold;
+            }
+        </style>
+        
     </style>
 </head>
+<body>
+
+    
     <div class="container">
+        <img src="https://img.zuomeme.com/uploads/1693569081758172966967.jpg" alt="Header Image" class="header-image" style="display: block; margin: auto;width: 500pt; height: auto;">
         <h1 class="text-center mb-4">{{ username }} 的待辦事項清單</h1>
+        </div>
         
-        <div class="mb-4 text-center">
-            <a href="/" class="btn btn-outline-primary {% if not category %}active{% endif %}">全部</a>
-            <a href="/?category=incomplete" class="btn btn-outline-warning {% if category == 'incomplete' %}active{% endif %}">未完成</a>
-            <a href="/?category=completed" class="btn btn-outline-success {% if category == 'completed' %}active{% endif %}">已完成</a>
-        </div>
-
-        <!-- 通知區塊 -->
-        {% if reminders %}
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <strong>提醒（2天內到期）：</strong>
-            <ul>
-                {% for reminder in reminders %}
-                    <li>{{ reminder }}</li>
-                {% endfor %}
-            </ul>
-            <div class="text-center mt-2">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="alert" aria-label="Close">關閉提醒</button>
+        <div class="container">
+            <!-- 通知區塊 -->
+            {% if reminders %}
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <strong>提醒（2天內到期）：</strong>
+                <ul>
+                    {% for reminder in reminders %}
+                        <li>{{ reminder }}</li>
+                    {% endfor %}
+                </ul>
+                <!-- 使用 Bootstrap 的 text-center 讓按鈕居中 -->
+                <div class="text-center mt-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="alert" aria-label="Close">關閉提醒</button>
+                </div>
             </div>
-        </div>
-        {% endif %}
+            
+            {% endif %}
 
-        <!-- 新增待辦事項表單 -->
         <form action="/add" method="POST" class="mb-3">
+            
             <div class="input-group mb-2">
                 <input type="text" name="content" class="form-control" placeholder="輸入新的待辦事項" required>
+                <input type="hidden" name="user_id" value="1"> <!-- 假設使用者ID為1 -->
             </div>
             <div class="input-group mb-3">
                 <label for="due_date" class="mr-2">選擇執行或截止日期：</label>
-                <input type="date" name="due_date" class="form-control" id="due_date">
+                <input type="date" name="due_date" class="form-control" id="due_date" required>
             </div>
             <div class="d-flex justify-content-end mt-4">
                 <button type="submit" class="btn btn-primary">新增</button>
             </div>
-        </form>
 
-        <!-- 待辦事項列表 -->
+            <div class="mb-4 text-center">
+                <a href="/?category=all" class="btn btn-outline-primary {% if category == 'all' %}active{% endif %}">全部</a>
+                <a href="/?category=incomplete" class="btn btn-outline-warning {% if category == 'incomplete' %}active{% endif %}">未完成</a>
+                <a href="/?category=completed" class="btn btn-outline-success {% if category == 'completed' %}active{% endif %}">已完成</a>
+            </div>
+            
+        </form>
+        
         <ul class="list-group">
             {% for todo in todos %}
-            <li class="list-group-item todo-item {% if todo.completed %}completed{% endif %}">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <!-- 顯示狀態 -->
-                        <span class="{% if todo.is_overdue %}overdue{% elif todo.in_progress %}in-progress{% else %}text-body{% endif %}">
-                            {% if todo.in_progress %}進行中：{% endif %}{{ todo.content }}
-                            {% if todo.is_overdue %}
-                                <span class="ms-2">（已過期）</span>
-                            {% endif %}
-                        </span><br>
-                        <small class="{% if todo.is_overdue %}text-danger{% else %}text-muted{% endif %}">
-                            截止日期：{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '無截止日期' }}
-                        </small>
+                <li class="list-group-item todo-item {% if todo.completed %}completed{% endif %}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <!-- 如果過期，事項名稱和日期都用紅色 -->
+                            <span class="{% if todo.is_overdue %}text-danger{% else %}text-body{% endif %}">
+                                {{ todo.content }}
+                                <!-- 過期顯示文字 -->
+                                {% if todo.is_overdue %}
+                                    <span class="ms-2">（已截止）</span>
+                                {% endif %}
+                            </span><br>
+                            <small class="{% if todo.is_overdue %}text-danger{% else %}text-muted{% endif %}">
+                                截止日期：{{ todo.due_date.strftime('%Y-%m-%d') }}
+                            </small>
+                        </div>
+                        <div>
+                            <a href="/complete/{{ todo.id }}" class="btn btn-success btn-sm">{{ '未完成' if todo.completed else '完成' }}</a>
+                            <a href="javascript:void(0);" class="btn btn-warning btn-sm edit-btn" data-id="{{ todo.id }}" data-content="{{ todo.content }}" data-due-date="{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '' }}">編輯</a>
+                            <a href="/delete/{{ todo.id }}" class="btn btn-danger btn-sm">刪除</a>
+                        </div>
                     </div>
-                    <div>
-                        <a href="/complete/{{ todo.id }}" class="btn btn-success btn-sm">{{ '未完成' if todo.completed else '完成' }}</a>
-                        <a href="/progress/{{ todo.id }}" class="btn btn-primary btn-sm">{{ '停止執行' if todo.in_progress else '執行' }}</a>
-                        <a href="javascript:void(0);" class="btn btn-warning btn-sm edit-btn" data-id="{{ todo.id }}" data-content="{{ todo.content }}" data-due-date="{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '' }}">編輯</a>
-                        <a href="/delete/{{ todo.id }}" class="btn btn-danger btn-sm">刪除</a>
-                    </div>
-                </div>
-            </li>
+                </li>
             {% endfor %}
         </ul>
-
-        <!-- 編輯模態框 -->
+        
+        
+        
         <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -173,38 +161,39 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- 底部按鈕 -->
+        </div>        
+        
+        
         <div class="text-center mt-4">
             <a href="/logout" class="btn btn-secondary mx-2">登出</a>
             <a href="/export" class="btn btn-success mx-2">匯出Excel</a>
         </div>
-    </div>
 
+    </div>
     <script>
-        // 編輯模態框邏輯
+        // 打開模態框並填充表單
         document.querySelectorAll('.edit-btn').forEach(button => {
             button.addEventListener('click', function () {
                 const todoId = this.getAttribute('data-id');
                 const content = this.getAttribute('data-content');
                 const dueDate = this.getAttribute('data-due-date');
-
+    
                 document.getElementById('editTodoId').value = todoId;
                 document.getElementById('editContent').value = content;
                 document.getElementById('editDueDate').value = dueDate;
-
+    
                 const modal = new bootstrap.Modal(document.getElementById('editModal'));
                 modal.show();
             });
         });
-
-        // 儲存變更請求
+        
+    
+        // 發送 AJAX 請求保存變更
         document.getElementById('saveChanges').addEventListener('click', function () {
             const todoId = document.getElementById('editTodoId').value;
             const content = document.getElementById('editContent').value;
             const dueDate = document.getElementById('editDueDate').value;
-
+    
             fetch(`/api/edit/${todoId}`, {
                 method: 'POST',
                 headers: {
@@ -219,7 +208,7 @@
             .then(data => {
                 if (data.status === 'success') {
                     alert('待辦事項已更新');
-                    location.reload();
+                    location.reload(); // 刷新頁面以顯示更新
                 } else {
                     alert(data.message);
                 }
@@ -232,27 +221,61 @@
     </script>
 
     <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const colorPicker = document.getElementById('bg-color-picker');
-        const body = document.body;
+        document.addEventListener('DOMContentLoaded', function () {
+            const colorPicker = document.getElementById('bg-color-picker');
+            const body = document.body;
     
-        // 從 LocalStorage 獲取背景顏色
-        const savedColor = localStorage.getItem('backgroundColor');
-        if (savedColor) {
-            body.style.backgroundColor = savedColor;
-            colorPicker.value = savedColor;
-        }
+            // 從 localStorage 獲取背景顏色
+            const savedColor = localStorage.getItem('backgroundColor');
+            if (savedColor) {
+                body.style.backgroundColor = savedColor;
+                colorPicker.value = savedColor;
+            }
     
-        // 實時更新背景顏色
-        colorPicker.addEventListener('input', function () {
-            const selectedColor = colorPicker.value;
-            body.style.backgroundColor = selectedColor;
+            // 實時更新背景顏色
+            colorPicker.addEventListener('input', function () {
+                const selectedColor = colorPicker.value;
+                body.style.backgroundColor = selectedColor;
     
-            // 儲存顏色到 LocalStorage
-            localStorage.setItem('backgroundColor', selectedColor);
+                // 儲存顏色到 localStorage
+                localStorage.setItem('backgroundColor', selectedColor);
+            });
         });
-    });
-</script>
+    </script>
+
+    <script>
+        // 當頁面加載完成後滾動到指定元素
+        document.addEventListener('DOMContentLoaded', function () {
+            const todoList = document.querySelector('.list-group'); // 獲取待辦事項列表
+            if (todoList) {
+                todoList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const colorPicker = document.getElementById('bg-color-picker');
+            const body = document.body;
+        
+            // 從 LocalStorage 獲取背景顏色
+            const savedColor = localStorage.getItem('backgroundColor');
+            if (savedColor) {
+                body.style.backgroundColor = savedColor;
+                colorPicker.value = savedColor;
+            }
+        
+            // 實時更新背景顏色
+            colorPicker.addEventListener('input', function () {
+                const selectedColor = colorPicker.value;
+                body.style.backgroundColor = selectedColor;
+        
+                // 儲存顏色到 LocalStorage
+                localStorage.setItem('backgroundColor', selectedColor);
+            });
+        });
+    </script>
+    
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
