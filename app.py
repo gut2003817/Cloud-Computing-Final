@@ -11,6 +11,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todos.db'
 app.config['SECRET_KEY'] = 'your_secret_key'
 db = SQLAlchemy(app)
 
+app.permanent_session_lifetime = timedelta(minutes=10)
+
 # User Model
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -109,6 +111,24 @@ def login():
 def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
+
+#auto-logout
+@app.route('/auto-logout', methods=['POST'])
+def auto_logout():
+    session.pop('user_id', None)  # 清除 session
+    return jsonify({'status': 'logged_out'})
+
+@app.before_request
+def update_last_activity():
+    if 'user_id' in session:
+        session.permanent = True  # 設定 session 為永久，以便配合 `permanent_session_lifetime`
+        session.modified = True  # 確保活動時間更新
+
+@app.before_request
+def update_last_activity():
+    if 'user_id' in session:
+        session.permanent = True  # 設定 session 為永久，以便配合 `permanent_session_lifetime`
+        session.modified = True  # 確保活動時間更新
 
 # Add Todo
 @app.route('/add', methods=['POST'])
