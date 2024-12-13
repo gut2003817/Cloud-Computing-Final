@@ -5,11 +5,19 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import pandas as pd
 import io
 from flask import send_file, jsonify
+import os
+from werkzeug.utils import secure_filename
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todos.db'
 app.config['SECRET_KEY'] = 'your_secret_key'
 db = SQLAlchemy(app)
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 app.permanent_session_lifetime = timedelta(minutes=10)
 
@@ -20,7 +28,15 @@ class User(db.Model):
     password = db.Column(db.String(200), nullable=False)
     todos = db.relationship('Todo', backref='user', lazy=True)
 
-# Todo Model
+# File Model
+class File(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(200), nullable=False)  # 檔案名稱
+    filepath = db.Column(db.String(300), nullable=False)  # 檔案路徑
+    todo_id = db.Column(db.Integer, db.ForeignKey('todo.id'), nullable=False)  # 關聯待辦事項
+    upload_time = db.Column(db.DateTime, default=datetime.utcnow)  # 上傳時間
+
+# 更新 Todo 模型以支持關聯
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.String(200), nullable=False)
@@ -29,6 +45,7 @@ class Todo(db.Model):
     due_date = db.Column(db.DateTime, nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category = db.Column(db.String(50), nullable=False, default='日常')
+    files = db.relationship('File', backref='todo', lazy=True)  # 關聯檔案
 
 # Index Page - Show Todos
 @app.route('/')
@@ -135,20 +152,32 @@ def update_last_activity():
 def add_todo():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
-    content = request.form['content']  # 獲取待辦事項的內容
-    due_date_str = request.form.get('due_date')  # 獲取截止日期（包含時間）
-    category = request.form.get('category', '日常')  # 獲取分類，預設為 "日常"
-    
-    # 將日期字串轉換為 datetime 格式，解析包含時間的格式，否則設為 None
+
+    # 獲取表單資料
+    content = request.form['content']
+    due_date_str = request.form.get('due_date')
+    category = request.form.get('category', '日常')
     due_date = datetime.strptime(due_date_str, '%Y-%m-%dT%H:%M') if due_date_str else None
-    
-    # 建立新的待辦事項
+
+    # 建立待辦事項
     new_todo = Todo(content=content, due_date=due_date, user_id=session['user_id'], category=category)
-    db.session.add(new_todo)  # 新增到資料庫
-    db.session.commit()  # 提交變更
-    
-    return redirect(url_for('index'))  # 重新導向到首頁
+    db.session.add(new_todo)
+    db.session.commit()
+
+    # 處理上傳檔案
+    if 'files' in request.files:
+        for file in request.files.getlist('files'):
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+
+                # 將檔案資訊存入資料庫
+                new_file = File(filename=filename, filepath=filepath, todo_id=new_todo.id)
+                db.session.add(new_file)
+        db.session.commit()
+
+    return redirect(url_for('index'))
 
 
 # Delete Todo
@@ -253,6 +282,43 @@ def export():
         as_attachment=True
     )
 
+@app.route('/upload_file/<int:todo_id>', methods=['POST'])
+def upload_file(todo_id):
+    if 'user_id' not in session:
+        return jsonify({'status': 'error', 'message': '未登入'}), 403
+    
+    todo = Todo.query.get_or_404(todo_id)
+    if todo.user_id != session['user_id']:
+        return jsonify({'status': 'error', 'message': '無權限'}), 403
+
+    if 'files' in request.files:
+        for file in request.files.getlist('files'):
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+
+                new_file = File(filename=filename, filepath=filepath, todo_id=todo_id)
+                db.session.add(new_file)
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': '檔案已上傳'})
+
+    return jsonify({'status': 'error', 'message': '無檔案'}), 400
+
+@app.route('/delete_file/<int:file_id>', methods=['DELETE'])
+def delete_file(file_id):
+    if 'user_id' not in session:
+        return jsonify({'status': 'error', 'message': '未登入'}), 403
+
+    file = File.query.get_or_404(file_id)
+    if file.todo.user_id != session['user_id']:
+        return jsonify({'status': 'error', 'message': '無權限'}), 403
+
+    os.remove(file.filepath)  # 刪除實體檔案
+    db.session.delete(file)
+    db.session.commit()
+    return jsonify({'status': 'success', 'message': '檔案已刪除'})
+    
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
