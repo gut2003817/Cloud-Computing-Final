@@ -71,30 +71,75 @@
 <body>
 
     <div class="container">
-        <img src="https://img.zuomeme.com/uploads/1693569081758172966967.jpg" alt="Header Image" class="header-image" style="display: block; margin: auto;width: 500pt; height: auto;">
+        <img src="https://img.zuomeme.com/uploads/1693569081758172966967.jpg" alt="Header Image" class="header-image">
         <h1 class="text-center mb-4">{{ username }} 的待辦事項清單</h1>
     </div>
 
     <div class="container">
         <h3 class="text-center mb-4">新增待辦事項</h3>
-        <div class="row justify-content-center mt-5">
+        <div class="row justify-content-center">
             <div class="col-auto">
-                <a href="/category/作業" class="btn category-btn btn-success mx-2 py-2 px-4">
+                <button class="btn category-btn btn-success mx-2 py-2 px-4" data-bs-toggle="modal" data-bs-target="#addTodoModal" data-category="作業">
                     作業
-                </a>
+                </button>
             </div>
             <div class="col-auto">
-                <a href="/category/考試" class="btn category-btn btn-primary mx-2 py-2 px-4">
+                <button class="btn category-btn btn-primary mx-2 py-2 px-4" data-bs-toggle="modal" data-bs-target="#addTodoModal" data-category="考試">
                     考試
-                </a>
+                </button>
             </div>
             <div class="col-auto">
-                <a href="/category/日常" class="btn category-btn btn-warning mx-2 py-2 px-4">
+                <button class="btn category-btn btn-warning mx-2 py-2 px-4" data-bs-toggle="modal" data-bs-target="#addTodoModal" data-category="日常">
                     日常
-                </a>
+                </button>
             </div>
         </div>
-    </div>   
+    </div>
+
+    <!-- 新增待辦事項模態框 -->
+    <div class="modal fade" id="addTodoModal" tabindex="-1" aria-labelledby="addTodoModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addTodoModalLabel">新增待辦事項</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="/add" method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="todoCategory" class="form-label">分類</label>
+                            <input type="text" name="category" id="todoCategory" class="form-control" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="todoContent" class="form-label">待辦事項內容</label>
+                            <input type="text" name="content" id="todoContent" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="todoDueDate" class="form-label">截止日期</label>
+                            <input type="datetime-local" name="due_date" id="todoDueDate" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label for="todoFiles" class="form-label">上傳檔案</label>
+                            <input type="file" name="files" id="todoFiles" class="form-control" multiple>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">新增</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 動態更新模態框中的分類名稱
+        document.querySelectorAll('.category-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const category = this.getAttribute('data-category');
+                document.getElementById('todoCategory').value = category;
+            });
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
     
     <hr class="my-4">   <!-- 添加垂直間距 -->
 
@@ -131,6 +176,7 @@
             </h3>
             <ul class="list-group">
                 {% for todo in todos if todo.category == category_name %}
+                {% set matched_files = (files|selectattr("todo_id", "equalto", todo.id)|list) %}
                     <li class="list-group-item todo-item category-{{ category_name }} {% if todo.completed %}completed{% endif %}">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -143,8 +189,22 @@
                                     {% endif %}
                                 </span><br>
                                 <small class="{% if todo.is_overdue %}text-danger{% else %}text-muted{% endif %}">
-                                    截止日期：{% if todo.due_date %}{{ todo.due_date.strftime('%Y-%m-%d %H:%M:%S') }}{% else %}無截止日期{% endif %}
+                                    截止日期：
+                                    {% if todo.due_date %}
+                                        {{ todo.due_date.strftime('%Y-%m-%d %H:%M:%S') }}
+                                    {% else %}
+                                        無截止日期
+                                    {% endif %}
                                 </small>
+                                {% if matched_files|length > 0 %}
+                                <div class="mt-2">
+                                    {% for f in matched_files %}
+                                        <a href="{{ url_for('view_file', file_id=f.id) }}" target="_blank" class="text-info d-block mb-1">
+                                            {{ f.filename }}
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
                             </div>
                             <div>
                                 <a href="/complete/{{ todo.id }}" class="btn btn-success btn-sm">
@@ -152,10 +212,16 @@
                                 </a>
                                 <a href="javascript:void(0);" class="btn btn-warning btn-sm edit-btn"
                                 data-id="{{ todo.id }}" data-content="{{ todo.content }}" 
-                                data-due-date="{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '' }}">
+                                data-due-date="{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '' }}"
+                                data-files='[
+                                {% for f in matched_files %}
+                                    {"id":{{f.id}}, "filename":"{{f.filename}}"}
+                                    {% if not loop.last %},{% endif %}
+                                {% endfor %}
+                                ]'>
                                     編輯
                                 </a>
-                                <a href="/delete/{{ todo.id }}" class="btn btn-danger btn-sm delete-btn" onclick="confirmDelete(event, '/delete/{{ todo.id }}');">刪除</a>
+                                <a href="/delete/{{ todo.id }}" class="btn btn-danger btn-sm">刪除</a>
                             </div>
                         </div>
                     </li>
@@ -173,86 +239,50 @@
 
         <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
             <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="editModalLabel">編輯待辦事項</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
+                <form id="editForm" enctype="multipart/form-data"></form>
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editModalLabel">編輯待辦事項</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
                     <div class="modal-body">
-                        <form id="editForm">
-                            <input type="hidden" id="editTodoId">
+                        <input type="hidden" id="editTodoId">
                             <div class="mb-3">
                                 <label for="editContent" class="form-label">待辦事項</label>
                                 <input type="text" class="form-control" id="editContent" required>
                             </div>
+
                             <div class="mb-3">
                                 <label for="editDueDate" class="form-label">截止日期</label>
                                 <input type="datetime-local" class="form-control" id="editDueDate">
                             </div>
-                        </form>
+
+                            <div class="mb-3">
+                                <label class="form-label">選擇刪除檔案</label>
+                                <div id="fileList">
+                                </div>
+                            </div>
+        
+                            <div class="mb-3">
+                                <label for="editFiles" class="form-label">新增檔案（可多選）</label>
+                                <input type="file" id="editFiles" name="files" multiple class="form-control">
+                            </div>                           
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="button" class="btn btn-primary" id="saveChanges">儲存變更</button>
+                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                        <button type="button" class="btn btn-primary" id="saveChanges">儲存變更</button>
-                    </div>
-                </div>
+                </form>
             </div>
         </div>
-
-    </div>     
+        
     <div class="text-center mt-4">
         <a href="/logout" class="btn btn-secondary mx-2">登出</a>
         <a href="/export" class="btn btn-success mx-2">匯出Excel</a>
+        <a href="/files" class="btn btn-success mx-2">檔案管理</a>
     </div>
 
-    <script>
-        let idleTime = 0; // 閒置時間計時（以分鐘為單位）
-        const idleLimit = 10; // 閒置時間限制（10 分鐘）
-    
-        // 每分鐘增加閒置計時
-        const idleInterval = setInterval(timerIncrement, 60000); // 每 1 分鐘執行一次
-    
-        // 檢測用戶活動（點擊、滑鼠移動、鍵盤事件）
-        document.addEventListener('mousemove', resetIdleTime);
-        document.addEventListener('keypress', resetIdleTime);
-        document.addEventListener('click', resetIdleTime);
-    
-        function resetIdleTime() {
-            idleTime = 0; // 重置閒置時間
-        }
-    
-        function timerIncrement() {
-            idleTime += 1; // 閒置時間增加
-            if (idleTime >= idleLimit) {
-                showLogoutAlert(); // 閒置時間達到限制，顯示登出提示
-            }
-        }
-    
-        function showLogoutAlert() {    
-            // 顯示瀏覽器原生的確認提示框
-            const userConfirmed = confirm("您已閒置超過 10 分鐘，將自動登出。點擊確認以登出。");
-            if (userConfirmed) {
-                autoLogout(); // 用戶點擊確認，執行登出
-            }
-        }
-    
-        function autoLogout() {
-            // 發送登出請求到後端
-            fetch('/auto-logout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            }).then(response => response.json())
-              .then(data => {
-                  if (data.status === 'logged_out') {
-                      alert('您已被登出，請重新登入。');
-                      window.location.href = '/login'; // 跳轉至登入頁
-                  }
-              }).catch(error => console.error('自動登出失敗:', error));
-        }
-    </script>
-       
     <script>
         // 打開模態框並填充表單
         document.querySelectorAll('.edit-btn').forEach(button => {
@@ -260,10 +290,31 @@
                 const todoId = this.getAttribute('data-id');
                 const content = this.getAttribute('data-content');
                 const dueDate = this.getAttribute('data-due-date');
+                const filesData = JSON.parse(this.getAttribute('data-files')); 
     
                 document.getElementById('editTodoId').value = todoId;
                 document.getElementById('editContent').value = content;
                 document.getElementById('editDueDate').value = dueDate;
+
+                const fileListDiv = document.getElementById('fileList');
+                fileListDiv.innerHTML = '';
+                if (filesData.length > 0) {
+                    filesData.forEach(f => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" name="delete_files" value="${f.id}">
+                                <label class="form-check-label">
+                                    <a href="/view/${f.id}" target="_blank">${f.filename}</a>
+                                </label>
+                            </div>
+                        `;
+                        fileListDiv.appendChild(div);
+                    });
+                } else {
+                    fileListDiv.innerHTML = '<p class="text-muted">尚未上傳檔案</p>';
+                }
+
     
                 const modal = new bootstrap.Modal(document.getElementById('editModal'));
                 modal.show();
@@ -276,22 +327,30 @@
             const todoId = document.getElementById('editTodoId').value;
             const content = document.getElementById('editContent').value;
             const dueDate = document.getElementById('editDueDate').value;
+            const fileInput = document.getElementById('editFiles');
+
+            const deleteFiles = Array.from(document.querySelectorAll('input[name="delete_files"]:checked')).map(el => el.value);
+
+            const formData = new FormData();
+            formData.append('content', content);
+            formData.append('due_date', dueDate);
+
+            deleteFiles.forEach(fid => formData.append('delete_files', fid));
     
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('files', fileInput.files[i]);
+            }
+
+            // 不要手動設定 Content-Type
             fetch(`/api/edit/${todoId}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    content: content,
-                    due_date: dueDate
-                })
+                body: formData // 讓瀏覽器自動處理 Content-Type
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     alert('待辦事項已更新');
-                    location.reload(); // 刷新頁面以顯示更新
+                    location.reload();
                 } else {
                     alert(data.message);
                 }
@@ -334,51 +393,6 @@
                 todoList.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         });
-    </script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const colorPicker = document.getElementById('bg-color-picker');
-            const body = document.body;
-        
-            // 從 LocalStorage 獲取背景顏色
-            const savedColor = localStorage.getItem('backgroundColor');
-            if (savedColor) {
-                body.style.backgroundColor = savedColor;
-                colorPicker.value = savedColor;
-            }
-        
-            // 實時更新背景顏色
-            colorPicker.addEventListener('input', function () {
-                const selectedColor = colorPicker.value;
-                body.style.backgroundColor = selectedColor;
-        
-                // 儲存顏色到 LocalStorage
-                localStorage.setItem('backgroundColor', selectedColor);
-            });
-        });
-    </script>
-
-    <!-- 刪除 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        function confirmDelete(event, deleteUrl) {
-            event.preventDefault();
-            Swal.fire({
-                title: '確認刪除',
-                text: "您確定要刪除此待辦事項嗎？",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: '確定！',
-                cancelButtonText: '取消'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = deleteUrl; // 執行刪除操作
-                }
-            });
-        }
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
