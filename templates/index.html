@@ -176,6 +176,7 @@
             </h3>
             <ul class="list-group">
                 {% for todo in todos if todo.category == category_name %}
+                {% set matched_files = (files|selectattr("todo_id", "equalto", todo.id)|list) %}
                     <li class="list-group-item todo-item category-{{ category_name }} {% if todo.completed %}completed{% endif %}">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -188,8 +189,22 @@
                                     {% endif %}
                                 </span><br>
                                 <small class="{% if todo.is_overdue %}text-danger{% else %}text-muted{% endif %}">
-                                    截止日期：{{ todo.due_date.strftime('%Y-%m-%d %H:%M:%S') }}
+                                    截止日期：
+                                    {% if todo.due_date %}
+                                        {{ todo.due_date.strftime('%Y-%m-%d %H:%M:%S') }}
+                                    {% else %}
+                                        無截止日期
+                                    {% endif %}
                                 </small>
+                                {% if matched_files|length > 0 %}
+                                <div class="mt-2">
+                                    {% for f in matched_files %}
+                                        <a href="{{ url_for('view_file', file_id=f.id) }}" target="_blank" class="text-info d-block mb-1">
+                                            {{ f.filename }}
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
                             </div>
                             <div>
                                 <a href="/complete/{{ todo.id }}" class="btn btn-success btn-sm">
@@ -197,7 +212,13 @@
                                 </a>
                                 <a href="javascript:void(0);" class="btn btn-warning btn-sm edit-btn"
                                 data-id="{{ todo.id }}" data-content="{{ todo.content }}" 
-                                data-due-date="{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '' }}">
+                                data-due-date="{{ todo.due_date.strftime('%Y-%m-%d') if todo.due_date else '' }}"
+                                data-files='[
+                                {% for f in matched_files %}
+                                    {"id":{{f.id}}, "filename":"{{f.filename}}"}
+                                    {% if not loop.last %},{% endif %}
+                                {% endfor %}
+                                ]'>
                                     編輯
                                 </a>
                                 <a href="/delete/{{ todo.id }}" class="btn btn-danger btn-sm">刪除</a>
@@ -218,36 +239,48 @@
 
         <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
             <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="editModalLabel">編輯待辦事項</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
+                <form id="editForm" enctype="multipart/form-data"></form>
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editModalLabel">編輯待辦事項</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
                     <div class="modal-body">
-                        <form id="editForm">
-                            <input type="hidden" id="editTodoId">
+                        <input type="hidden" id="editTodoId">
                             <div class="mb-3">
                                 <label for="editContent" class="form-label">待辦事項</label>
                                 <input type="text" class="form-control" id="editContent" required>
                             </div>
+
                             <div class="mb-3">
                                 <label for="editDueDate" class="form-label">截止日期</label>
                                 <input type="datetime-local" class="form-control" id="editDueDate">
                             </div>
-                        </form>
+
+                            <div class="mb-3">
+                                <label class="form-label">選擇刪除檔案</label>
+                                <div id="fileList">
+                                </div>
+                            </div>
+        
+                            <div class="mb-3">
+                                <label for="editFiles" class="form-label">新增檔案（可多選）</label>
+                                <input type="file" id="editFiles" name="files" multiple class="form-control">
+                            </div>                           
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="button" class="btn btn-primary" id="saveChanges">儲存變更</button>
+                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                        <button type="button" class="btn btn-primary" id="saveChanges">儲存變更</button>
-                    </div>
-                </div>
+                </form>
             </div>
         </div>
-
-    </div>     
+        
     <div class="text-center mt-4">
         <a href="/logout" class="btn btn-secondary mx-2">登出</a>
         <a href="/export" class="btn btn-success mx-2">匯出Excel</a>
+        <a href="/files" class="btn btn-success mx-2">檔案管理</a>
     </div>
 
     <script>
@@ -257,10 +290,31 @@
                 const todoId = this.getAttribute('data-id');
                 const content = this.getAttribute('data-content');
                 const dueDate = this.getAttribute('data-due-date');
+                const filesData = JSON.parse(this.getAttribute('data-files')); 
     
                 document.getElementById('editTodoId').value = todoId;
                 document.getElementById('editContent').value = content;
                 document.getElementById('editDueDate').value = dueDate;
+
+                const fileListDiv = document.getElementById('fileList');
+                fileListDiv.innerHTML = '';
+                if (filesData.length > 0) {
+                    filesData.forEach(f => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" name="delete_files" value="${f.id}">
+                                <label class="form-check-label">
+                                    <a href="/view/${f.id}" target="_blank">${f.filename}</a>
+                                </label>
+                            </div>
+                        `;
+                        fileListDiv.appendChild(div);
+                    });
+                } else {
+                    fileListDiv.innerHTML = '<p class="text-muted">尚未上傳檔案</p>';
+                }
+
     
                 const modal = new bootstrap.Modal(document.getElementById('editModal'));
                 modal.show();
@@ -273,22 +327,30 @@
             const todoId = document.getElementById('editTodoId').value;
             const content = document.getElementById('editContent').value;
             const dueDate = document.getElementById('editDueDate').value;
+            const fileInput = document.getElementById('editFiles');
+
+            const deleteFiles = Array.from(document.querySelectorAll('input[name="delete_files"]:checked')).map(el => el.value);
+
+            const formData = new FormData();
+            formData.append('content', content);
+            formData.append('due_date', dueDate);
+
+            deleteFiles.forEach(fid => formData.append('delete_files', fid));
     
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('files', fileInput.files[i]);
+            }
+
+            // 不要手動設定 Content-Type
             fetch(`/api/edit/${todoId}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    content: content,
-                    due_date: dueDate
-                })
+                body: formData // 讓瀏覽器自動處理 Content-Type
             })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
                     alert('待辦事項已更新');
-                    location.reload(); // 刷新頁面以顯示更新
+                    location.reload();
                 } else {
                     alert(data.message);
                 }
@@ -330,29 +392,6 @@
             if (todoList) {
                 todoList.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
-        });
-    </script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const colorPicker = document.getElementById('bg-color-picker');
-            const body = document.body;
-        
-            // 從 LocalStorage 獲取背景顏色
-            const savedColor = localStorage.getItem('backgroundColor');
-            if (savedColor) {
-                body.style.backgroundColor = savedColor;
-                colorPicker.value = savedColor;
-            }
-        
-            // 實時更新背景顏色
-            colorPicker.addEventListener('input', function () {
-                const selectedColor = colorPicker.value;
-                body.style.backgroundColor = selectedColor;
-        
-                // 儲存顏色到 LocalStorage
-                localStorage.setItem('backgroundColor', selectedColor);
-            });
         });
     </script>
 

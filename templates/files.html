@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>檔案管理</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #ffffff; /* 默認顏色 */
+            transition: background-color 0.3s ease; /* 平滑過渡 */
+        }
+        .container {
+            margin-top: 50px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        }
+        .text-muted {
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center section-title">檔案管理</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    {% if category == 'delete' %}
+                        <div class="alert alert-danger" role="alert">
+                            {{ message }}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <style>
+            .section-title {
+                margin-bottom: 40px; /* 增加標題下方的間距 */
+            }
+        </style>
+        <!-- 篩選區 -->
+        <form id="filter-form" class="mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="category">依分類篩選</label>
+                    <select class="form-control" id="category" name="category">
+                        <option value="">全部分類</option>
+                        {% for category in ['作業', '考試', '日常'] %}
+                        <option value="{{ category }}">{{ category }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="todo_id">依待辦事項篩選</label>
+                    <select class="form-control" id="todo_id" name="todo_id">
+                        <option value="">全部待辦事項</option>
+                    </select>
+                </div>
+            </div>
+        </form>
+
+        <!-- 檔案列表表單 (刪除檔案) -->
+        <form id="file-management-form" action="/manage_files" method="POST" enctype="multipart/form-data">
+            <table class="table table-bordered mt-4">
+                <thead class="thead-light">
+                    <tr>
+                        <th>選擇</th>
+                        <th>檔案名稱</th>
+                        <th>待辦事項分類</th>
+                        <th>待辦事項</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if files %}
+                    {% for file in files %}
+                    <tr>
+                        <td><input type="checkbox" name="delete_files" value="{{ file.id }}"></td>
+                        <td><a href="{{ url_for('view_file', file_id=file.id) }}" target="_blank" class="text-info">{{ file.filename }}</a></td>
+                        <td>{{ file.todo.category }}</td>
+                        <td>{{ file.todo.content }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">尚未新增檔案</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+            <div class="text-center mb-4">
+                <button type="submit" class="btn btn-danger" name="action" value="delete">刪除選擇檔案</button>
+            </div>
+        </form>
+    </div>
+        <div class="container">
+            <h1 class="text-center section-title">新增管理（可多選）</h1>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        {% if category == 'add' %}
+                            <div class="alert alert-success" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <style>
+                .section-title {
+                    margin-bottom: 40px; /* 增加標題下方的間距 */
+                }
+            </style>
+            <!-- 新增檔案區域 -->
+            <form id="file-upload-form" action="/manage_files" method="POST" enctype="multipart/form-data">
+                <!-- 隱藏欄位，標記為上傳操作 -->
+                <input type="hidden" name="action" value="upload">
+            
+                <div class="form-group">
+                    <label for="upload-category">分類</label>
+                    <select class="form-control" id="upload-category" required>
+                        <option value="">請選擇分類</option>
+                        {% for category in ['作業', '考試', '日常'] %}
+                        <option value="{{ category }}">{{ category }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            
+                <div class="form-group">
+                    <label for="todoSelect">選擇待辦事項</label>
+                    <select class="form-control" name="todo_id" id="todoSelect" required>
+                        <option value="">請先選擇分類</option>
+                    </select>
+                </div>
+            
+                <div class="form-group">
+                    <label for="uploadFiles">上傳檔案（可多選）</label>
+                    <input type="file" class="form-control" name="files" id="uploadFiles" multiple required>
+                </div>
+                
+                <div class="text-center mb-4">
+                    <button type="submit" class="btn btn-primary mt-3">新增檔案</button>
+                </div>
+            </form>
+        </div>
+            <div class="text-center mt-4">
+                <a href="/" class="btn btn-secondary mx-2">首頁</a>
+            </div>
+        
+
+    <script>
+        // 從後端獲取待辦事項並更新頁面
+        document.addEventListener('DOMContentLoaded', function () {
+            const categorySelect = document.getElementById('category'); // 上方篩選的分類
+            const todoSelect = document.getElementById('todo_id'); // 上方篩選的待辦事項
+            const filesTable = document.getElementById('files-table-body'); // 檔案列表
+            const uploadCategorySelect = document.getElementById('upload-category'); // 下方新增檔案的分類
+            const uploadTodoSelect = document.getElementById('todoSelect'); // 下方新增檔案的待辦事項
+    
+            // 更新待辦事項選單
+            function updateTodos(categoryElement, todoElement, resetFiles = false) {
+                const selectedCategory = categoryElement.value;
+    
+                fetch(`/get_todos?category=${encodeURIComponent(selectedCategory)}`)
+                    .then(response => response.json())
+                    .then(todos => {
+                        todoElement.innerHTML = '<option value="">全部待辦事項</option>';
+                        if (todos.length === 0) {
+                            const noOption = document.createElement('option');
+                            noOption.textContent = '無可用待辦事項';
+                            todoElement.appendChild(noOption);
+                        } else {
+                            todos.forEach(todo => {
+                                const option = document.createElement('option');
+                                option.value = todo.id;
+                                option.textContent = todo.content;
+                                todoElement.appendChild(option);
+                            });
+                        }
+    
+                        // 如果需要重置檔案列表
+                        if (resetFiles) {
+                            todoElement.value = ""; // 重置為「全部待辦事項」
+                            updateFiles();
+                        }
+                    })
+                    .catch(error => console.error('Error fetching todos:', error));
+            }
+    
+            // 更新檔案列表
+            function updateFiles() {
+                const selectedCategory = categorySelect.value;
+                const selectedTodoId = todoSelect.value;
+    
+                fetch(`/get_files?category=${encodeURIComponent(selectedCategory)}&todo_id=${encodeURIComponent(selectedTodoId)}`)
+                    .then(response => response.json())
+                    .then(files => {
+                        filesTable.innerHTML = '';
+                        if (files.length === 0) {
+                            const noFilesRow = document.createElement('tr');
+                            noFilesRow.innerHTML = '<td colspan="4" class="text-center text-muted">尚未新增檔案</td>';
+                            filesTable.appendChild(noFilesRow);
+                        } else {
+                            files.forEach(file => {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td><input type="checkbox" name="delete_files" value="${file.id}"></td>
+                                    <td><a href="/view_file/${file.id}" target="_blank" class="text-info">${file.filename}</a></td>
+                                    <td>${file.category}</td>
+                                    <td>${file.content}</td>
+                                `;
+                                filesTable.appendChild(row);
+                            });
+                        }
+                    })
+                    .catch(error => console.error('Error fetching files:', error));
+            }
+    
+            // 綁定上方篩選事件
+            categorySelect.addEventListener('change', function () {
+                updateTodos(categorySelect, todoSelect, true);
+            });
+            todoSelect.addEventListener('change', updateFiles);
+    
+            // 綁定下方新增檔案區域事件
+            uploadCategorySelect.addEventListener('change', function () {
+                updateTodos(uploadCategorySelect, uploadTodoSelect, false);
+            });
+    
+            // 頁面初始化時執行
+            updateTodos(categorySelect, todoSelect, true);
+            updateTodos(uploadCategorySelect, uploadTodoSelect, false);
+            updateFiles();
+        });
+    </script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const colorPicker = document.getElementById('bg-color-picker');
+            const body = document.body;
+    
+            // 從 localStorage 獲取背景顏色
+            const savedColor = localStorage.getItem('backgroundColor');
+            if (savedColor) {
+                body.style.backgroundColor = savedColor;
+                colorPicker.value = savedColor;
+            }
+    
+            // 實時更新背景顏色
+            colorPicker.addEventListener('input', function () {
+                const selectedColor = colorPicker.value;
+                body.style.backgroundColor = selectedColor;
+    
+                // 儲存顏色到 localStorage
+                localStorage.setItem('backgroundColor', selectedColor);
+            });
+        });
+    </script>
+
+    <script>
+        // 當頁面加載完成後滾動到指定元素
+        document.addEventListener('DOMContentLoaded', function () {
+            const todoList = document.querySelector('.list-group'); // 獲取待辦事項列表
+            if (todoList) {
+                todoList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

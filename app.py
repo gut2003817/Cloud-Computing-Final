@@ -9,6 +9,7 @@ import os
 from werkzeug.utils import secure_filename
 
 
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///todos.db'
 app.config['SECRET_KEY'] = 'your_secret_key'
@@ -72,8 +73,10 @@ def index():
     for todo in todos:
         todo.is_overdue = todo.due_date and todo.due_date < datetime.utcnow()
 
+    files = File.query.join(Todo, File.todo_id == Todo.id).filter(Todo.user_id == user.id).all()
+
     reminders = session.pop('reminder', None)
-    return render_template('index.html', todos=todos, username=user.username, reminders=reminders, category=category)
+    return render_template('index.html', todos=todos, username=user.username, reminders=reminders, category=category, files=files)
 
 # Register
 @app.route('/register', methods=['GET', 'POST'])
@@ -120,12 +123,14 @@ def login():
                 session.pop('reminder', None)
 
             return redirect(url_for('index'))
+        
         flash('使用者名稱或密碼錯誤，或是帳號未註冊')
     return render_template('login.html')
 
 # Logout
 @app.route('/logout')
 def logout():
+    session.clear()
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
@@ -180,6 +185,144 @@ def add_todo():
     return redirect(url_for('index'))
 
 
+@app.route('/manage_files', methods=['POST'])
+def manage_files():
+    if 'user_id' not in session:
+        flash("請先登入", "danger")
+        return redirect(url_for('login'))
+    
+    # 刪除選擇的檔案
+    if request.form.get('action') == 'delete':
+        file_ids = request.form.getlist('delete_files')  # 獲取所有選中的檔案ID
+        if file_ids:
+            for file_id in file_ids:
+                file_to_delete = File.query.get(file_id)
+                if file_to_delete and file_to_delete.todo.user_id == session['user_id']:
+                    try:
+                        # 刪除實體檔案
+                        os.remove(file_to_delete.filepath)
+                        db.session.delete(file_to_delete)
+                    except FileNotFoundError:
+                        flash(f"檔案 {file_to_delete.filename} 不存在", "warning")
+            db.session.commit()
+            flash("檔案已刪除", "delete")
+        else:
+            flash("未選擇任何檔案", "warning")
+        return redirect(url_for('files_page'))
+
+    # 新增檔案到待辦事項
+    elif request.form.get('action') == 'upload':
+        todo_id = request.form.get('todo_id')
+        files = request.files.getlist('files')
+
+        if not todo_id:
+            flash("請選擇待辦事項", "warning")
+            return redirect(url_for('files_page'))
+
+        todo = Todo.query.get(todo_id)
+        if not todo or todo.user_id != session['user_id']:
+            flash("無權限新增到該待辦事項", "danger")
+            return redirect(url_for('files_page'))
+
+        if not files:
+            flash("未選擇任何檔案", "warning")
+            return redirect(url_for('files_page'))
+
+        for file in files:
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+
+                new_file = File(filename=filename, filepath=filepath, todo_id=todo.id)
+                db.session.add(new_file)
+
+        db.session.commit()
+        flash("檔案已成功新增", "add")
+        return redirect(url_for('files_page'))
+
+    # 如果請求中沒有正確的動作
+    flash("未知的操作", "danger")
+    return redirect(url_for('files_page'))
+
+
+@app.route('/files', methods=['GET', 'POST'])
+def files_page():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    category = request.args.get('category')
+    todo_id = request.args.get('todo_id')
+
+    # 篩選待辦事項
+    todos_query = Todo.query.filter_by(user_id=user_id)
+    if category:
+        todos_query = todos_query.filter_by(category=category)
+    todos = todos_query.all()
+
+    # 篩選檔案
+    files_query = File.query.join(Todo).filter(Todo.user_id == user_id)
+    if todo_id:
+        files_query = files_query.filter(File.todo_id == todo_id)
+    files = files_query.all()
+
+    # 判斷是否無檔案
+    no_files_message = None
+    if not files:
+        no_files_message = "尚未新增檔案"
+
+    return render_template(
+        'files.html',
+        files=files,
+        todos=todos,
+        selected_category=category,
+        selected_todo_id=todo_id,
+        no_files_message=no_files_message
+    )
+
+@app.route('/get_todos', methods=['GET'])
+def get_todos():
+    if 'user_id' not in session:
+        return jsonify([])
+
+    category = request.args.get('category')
+    user_id = session['user_id']
+
+    todos_query = Todo.query.filter_by(user_id=user_id)
+    if category:
+        todos_query = todos_query.filter_by(category=category)
+
+    todos = todos_query.all()
+    todos_dict = [{"id": todo.id, "content": todo.content} for todo in todos]
+    return jsonify(todos_dict)
+
+@app.route('/get_files', methods=['GET'])
+def get_files():
+    if 'user_id' not in session:
+        return jsonify([])
+
+    user_id = session['user_id']
+    category = request.args.get('category')
+    todo_id = request.args.get('todo_id')
+
+    files_query = File.query.join(Todo).filter(Todo.user_id == user_id)
+
+    if category:
+        files_query = files_query.filter(Todo.category == category)
+    if todo_id:
+        files_query = files_query.filter(File.todo_id == todo_id)
+
+    files = files_query.all()
+    files_list = [{
+        "id": file.id,
+        "filename": file.filename,
+        "category": file.todo.category,
+        "content": file.todo.content
+    } for file in files]
+
+    return jsonify(files_list)
+
 # Delete Todo
 @app.route('/delete/<int:id>')
 def delete_todo(id):
@@ -189,6 +332,13 @@ def delete_todo(id):
     if todo_to_delete.user_id != session['user_id']:
         flash('無權限刪除此項目')
         return redirect(url_for('index'))
+
+    # 先刪除與此待辦事項相關的檔案記錄與實體檔案
+    for f in todo_to_delete.files:
+        if os.path.exists(f.filepath):
+            os.remove(f.filepath)
+        db.session.delete(f)
+    
     db.session.delete(todo_to_delete)
     db.session.commit()
     return redirect(url_for('index'))
@@ -202,9 +352,8 @@ def api_edit_todo(id):
     if todo.user_id != session['user_id']:
         return jsonify({'status': 'error', 'message': '無權限編輯此項目'}), 403
 
-    data = request.json
-    content = data.get('content')
-    due_date_str = data.get('due_date')
+    content = request.form.get('content')
+    due_date_str = request.form.get('due_date')
 
     if not content:
         return jsonify({'status': 'error', 'message': '待辦事項內容不能為空'}), 400
@@ -212,11 +361,46 @@ def api_edit_todo(id):
     todo.content = content
     todo.due_date = datetime.strptime(due_date_str, '%Y-%m-%dT%H:%M') if due_date_str else None
 
+    # 欲刪除的檔案ID列表
+    delete_files = request.form.getlist('delete_files')  # ex: ['1', '2']
+    for fid in delete_files:
+        file_to_delete = File.query.get(int(fid))
+        if file_to_delete and file_to_delete.todo_id == todo.id:
+            if os.path.exists(file_to_delete.filepath):
+                os.remove(file_to_delete.filepath)
+            db.session.delete(file_to_delete)
+
+    # 新增上傳的檔案(若有)
+    new_files = request.files.getlist('files')
+    for f in new_files:
+        if f and f.filename:
+            filename = secure_filename(f.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            f.save(filepath)
+            new_file = File(filename=filename, filepath=filepath, todo_id=todo.id)
+            db.session.add(new_file)
+
     try:
         db.session.commit()
         return jsonify({'status': 'success', 'message': '待辦事項已成功更新'})
-    except:
-        return jsonify({'status': 'error', 'message': '更新失敗'}), 500
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'更新失敗: {str(e)}'}), 500
+
+    # 新增上傳的檔案（若有）
+    new_files = request.files.getlist('files')
+    for f in new_files:
+        if f and f.filename:
+            filename = secure_filename(f.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            f.save(filepath)
+            new_file = File(filename=filename, filepath=filepath, todo_id=todo.id)
+            db.session.add(new_file)
+
+    try:
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': '待辦事項已成功更新'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'更新失敗: {str(e)}'}), 500
 
 @app.route('/category/<string:category>', methods=['GET', 'POST'])
 def category_page(category):
@@ -318,7 +502,25 @@ def delete_file(file_id):
     db.session.delete(file)
     db.session.commit()
     return jsonify({'status': 'success', 'message': '檔案已刪除'})
-    
+
+@app.route('/view_file/<int:file_id>')
+def view_file(file_id):
+    if 'user_id' not in session:
+        flash("請先登入", "danger")
+        return redirect(url_for('login'))
+
+    file = File.query.get(file_id)
+    if not file or file.todo.user_id != session['user_id']:
+        flash("無權限檢視該檔案", "danger")
+        return redirect(url_for('files_page'))
+
+    # 確認檔案存在
+    if not os.path.exists(file.filepath):
+        flash("檔案不存在", "danger")
+        return redirect(url_for('files_page'))
+
+    return send_file(file.filepath)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
