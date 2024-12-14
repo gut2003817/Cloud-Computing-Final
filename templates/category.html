@@ -43,45 +43,195 @@
         .input-group input, .input-group label {
             font-size: 0.9rem;
         }
+        .hidden {
+            display: none;
+        }
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 class="text-center">{{ category }} 待辦事項</h1>
-        <form action="" method="POST" class="mb-3">
-            <div class="input-group mb-3">
-                <input type="text" name="content" class="form-control" placeholder="輸入待辦事項" required>
-            </div>
-            <div class="input-group mb-3">
-                <label for="due_date" class="form-label me-2">截止日期：</label>
-                <input type="datetime-local" name="due_date" class="form-control" id="due_date">
-            </div>
-            <div class="d-flex justify-content-end">
-                <button type="submit" class="btn btn-primary">新增</button>
-            </div>
-        </form>
+        <h1 class="text-center">{{ category }}清單</h1>
 
-        <ul class="list-group">
-            {% for todo in todos %}
-            <li class="list-group-item {% if todo.completed %}completed{% endif %}">
-                <span>
-                    {{ todo.content }}
-                    <small class="text-muted"> - {{ todo.due_date.strftime('%Y-%m-%d %H:%M:%S') if todo.due_date else '無截止日期' }}</small>
-                </span>
-                <div>
-                    {% if not todo.completed %}
-                    <a href="/complete/{{ todo.id }}" class="btn btn-success btn-sm">完成</a>
-                    {% endif %}
-                    <a href="/delete/{{ todo.id }}" class="btn btn-danger btn-sm" onclick="confirmDelete(event, '/delete/{{ todo.id }}');">刪除</a>
+        <!-- 功能切換按鈕 -->
+        {% if category == '考試' %}
+        <div class="btn-group">
+            <button id="showTodos" class="btn btn-primary">新增待辦事項</button>
+            <button id="showScoreCalculator" class="btn btn-secondary">計算當前成績</button>
+        </div>
+        {% endif %}
+
+        <!-- 代辦事項區域 -->
+        <div id="todoSection">
+            <form action="" method="POST" class="mb-3">
+                <div class="input-group mb-3">
+                    <input type="text" name="content" class="form-control" placeholder="輸入待辦事項" required>
                 </div>
-            </li>
-            {% endfor %}
-        </ul>
+                <div class="input-group mb-3">
+                    <label for="due_date" class="form-label me-2">截止日期：</label>
+                    <input 
+                        type="datetime-local" 
+                        name="due_date" 
+                        class="form-control" 
+                        id="due_date" 
+                        {% if todo and todo.due_date %}value="{{ todo.due_date.strftime('%Y-%m-%dT%H:%M') }}"{% endif %}
+                    >
+                </div>
+                
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary">新增</button>
+                </div>
+            </form>
 
+            <ul class="list-group">
+                {% for todo in todos %}
+                <li class="list-group-item {% if todo.completed %}completed{% endif %}">
+                    <span>
+                        {{ todo.content }}
+                        <small class="text-muted"> - {{ todo.due_date.strftime('%Y-%m-%d %H:%M:%S') if todo.due_date else '無截止日期' }}</small>
+                    </span>
+                    <div>
+                        {% if not todo.completed %}
+                        <a href="/complete/{{ todo.id }}" class="btn btn-success btn-sm">完成</a>
+                        {% endif %}
+                        <a href="/delete/{{ todo.id }}" class="btn btn-danger btn-sm" onclick="confirmDelete(event, '/delete/{{ todo.id }}');">刪除</a>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- 成績計算區域 -->
+        <div id="scoreSection" class="hidden">
+            <h2 class="text-center mb-4">計算成績</h2>
+            <form id="scoreForm" class="mb-4">
+                <div class="form-group mb-3">
+                    <label for="subjectName" class="form-label">科目名稱：</label>
+                    <input type="text" id="subjectName" class="form-control" placeholder="輸入科目名稱" required>
+                </div>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered text-center">
+                        <thead>
+                            <tr>
+                                <th>項目名稱</th>
+                                <th>成績 (%)</th>
+                                <th>佔比 (%)</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scoreTableBody">
+                            <tr>
+                                <td><input type="text" class="form-control item-name" placeholder="輸入項目名稱"></td>
+                                <td><input type="number" class="form-control item-score" min="0" max="100" placeholder="成績"></td>
+                                <td><input type="number" class="form-control item-weight" min="0" max="100" placeholder="佔比"></td>
+                                <td>
+                                    <button type="button" class="btn btn-danger btn-sm remove-row">移除</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" id="addRow" class="btn btn-secondary btn-sm mb-3">新增項目</button>
+                <div class="text-end">
+                    <button type="button" id="calculate" class="btn btn-primary">計算成績</button>
+                </div>
+            </form>
+
+            <!-- 成績結果 -->
+            <div id="result" class="alert alert-info d-none">
+                <strong>科目：</strong><span id="resultSubject"></span><br>
+                <strong>當前成績：</strong><span id="resultScore"></span> 分
+            </div>
+        </div>
+
+        <!-- 返回首頁按鈕 -->
         <div class="text-center mt-4">
             <a href="/" class="btn btn-secondary">返回首頁</a>
         </div>
     </div>
+
+    <script>
+        // 功能切換
+        {% if category == '考試' %}
+        document.getElementById('showTodos').addEventListener('click', () => {
+            document.getElementById('todoSection').classList.remove('hidden');
+            document.getElementById('scoreSection').classList.add('hidden');
+        });
+
+        document.getElementById('showScoreCalculator').addEventListener('click', () => {
+            document.getElementById('todoSection').classList.add('hidden');
+            document.getElementById('scoreSection').classList.remove('hidden');
+        });
+        {% endif %}
+
+        // 刪除確認提示
+        function confirmDelete(event, deleteUrl) {
+            event.preventDefault();
+            Swal.fire({
+                title: '確認刪除',
+                text: "您確定要刪除此待辦事項嗎？",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: '確定！',
+                cancelButtonText: '取消'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = deleteUrl;
+                }
+            });
+        }
+
+        // 成績計算功能
+        document.getElementById('addRow').addEventListener('click', () => {
+            const tableBody = document.getElementById('scoreTableBody');
+            const newRow = `
+                <tr>
+                    <td><input type="text" class="form-control item-name" placeholder="輸入項目名稱"></td>
+                    <td><input type="number" class="form-control item-score" min="0" max="100" placeholder="成績"></td>
+                    <td><input type="number" class="form-control item-weight" min="0" max="100" placeholder="佔比"></td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm remove-row">移除</button>
+                    </td>
+                </tr>`;
+            tableBody.insertAdjacentHTML('beforeend', newRow);
+        });
+
+        document.getElementById('scoreTableBody').addEventListener('click', (event) => {
+            if (event.target.classList.contains('remove-row')) {
+                event.target.closest('tr').remove();
+            }
+        });
+
+        document.getElementById('calculate').addEventListener('click', () => {
+            const subject = document.getElementById('subjectName').value.trim();
+            const rows = document.querySelectorAll('#scoreTableBody tr');
+            let totalScore = 0;
+            let totalWeight = 0;
+
+            for (const row of rows) {
+                const score = parseFloat(row.querySelector('.item-score').value) || 0;
+                const weight = parseFloat(row.querySelector('.item-weight').value) || 0;
+                totalScore += (score * weight) / 100;
+                totalWeight += weight;
+            }
+
+            if (totalWeight !== 100) {
+                alert('總佔比必須等於 100%！');
+                return;
+            }
+
+            document.getElementById('resultSubject').textContent = subject;
+            document.getElementById('resultScore').textContent = totalScore.toFixed(2);
+            document.getElementById('result').classList.remove('d-none');
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -105,25 +255,5 @@
             });
         });
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        function confirmDelete(event, deleteUrl) {
-            event.preventDefault(); // 阻止默認刪除操作
-            Swal.fire({
-                title: '確認刪除',
-                text: "您確定要刪除此待辦事項嗎？",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: '確定！',
-                cancelButtonText: '取消'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = deleteUrl; // 執行刪除操作
-                }
-            });
-        }
-    </script>    
 </body>
 </html>
