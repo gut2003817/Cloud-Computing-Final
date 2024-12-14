@@ -398,30 +398,19 @@ def category_page(category):
     if not user:
         return redirect(url_for('login'))
 
-    # 獲取當前分類的待辦事項
     todos = Todo.query.filter_by(user_id=user.id, category=category).order_by(Todo.due_date.asc().nulls_last(), Todo.date_created.asc()).all()
 
     if request.method == 'POST':
-        # 新增代辦事項到該分類
         content = request.form['content']
         due_date_str = request.form.get('due_date')
+        # 使用正確的解析格式
         due_date = datetime.strptime(due_date_str, '%Y-%m-%dT%H:%M') if due_date_str else None
         new_todo = Todo(content=content, due_date=due_date, user_id=user.id, category=category)
         db.session.add(new_todo)
         db.session.commit()
         return redirect(url_for('category_page', category=category))
 
-    # 設置是否顯示計算成績功能
-    show_score_calculator = (category == '考試')
-
-    return render_template(
-        'category.html',
-        todos=todos,
-        username=user.username,
-        category=category,
-        show_score_calculator=show_score_calculator
-    )
-
+    return render_template('category.html', todos=todos, username=user.username, category=category)
 
 
 @app.route('/complete/<int:id>')
@@ -463,8 +452,6 @@ def export():
         download_name='todos.xlsx',
         as_attachment=True
     )
-    
-
 
 @app.route('/upload_file/<int:todo_id>', methods=['POST'])
 def upload_file(todo_id):
