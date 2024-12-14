@@ -410,7 +410,14 @@ def category_page(category):
         db.session.commit()
         return redirect(url_for('category_page', category=category))
 
-    return render_template('category.html', todos=todos, username=user.username, category=category)
+    show_score_calculator = (category == '考試')
+    return render_template(
+        'category.html',
+        todos=todos,
+        username=user.username,
+        category=category,
+        show_score_calculator=show_score_calculator
+    )    
 
 
 @app.route('/complete/<int:id>')
