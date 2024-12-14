@@ -96,7 +96,7 @@
         </form>
     </div>
         <div class="container">
-            <h1 class="text-center section-title">新增管理（可多選）</h1>
+            <h1 class="text-center section-title">新增檔案（可多選）</h1>
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
@@ -151,27 +151,32 @@
         
 
     <script>
-        // 從後端獲取待辦事項並更新頁面
         document.addEventListener('DOMContentLoaded', function () {
-            const categorySelect = document.getElementById('category'); // 上方篩選的分類
-            const todoSelect = document.getElementById('todo_id'); // 上方篩選的待辦事項
-            const filesTable = document.getElementById('files-table-body'); // 檔案列表
-            const uploadCategorySelect = document.getElementById('upload-category'); // 下方新增檔案的分類
-            const uploadTodoSelect = document.getElementById('todoSelect'); // 下方新增檔案的待辦事項
-    
+            const categorySelect = document.getElementById('category'); // 篩選分類
+            const todoSelect = document.getElementById('todo_id'); // 篩選待辦事項
+            const uploadCategorySelect = document.getElementById('upload-category'); // 新增檔案分類
+            const uploadTodoSelect = document.getElementById('todoSelect'); // 新增檔案待辦事項
+            const filesTableBody = document.querySelector('tbody'); // 檔案表格的 tbody
+            const noFilesMessage = '<tr><td colspan="4" class="text-center text-muted">尚未新增檔案</td></tr>'; // 無檔案訊息
+
             // 更新待辦事項選單
             function updateTodos(categoryElement, todoElement, resetFiles = false) {
                 const selectedCategory = categoryElement.value;
-    
+
+                // AJAX 請求獲取待辦事項
                 fetch(`/get_todos?category=${encodeURIComponent(selectedCategory)}`)
                     .then(response => response.json())
                     .then(todos => {
+                        // 清空待辦事項選單
                         todoElement.innerHTML = '<option value="">全部待辦事項</option>';
                         if (todos.length === 0) {
+                            // 無待辦事項時添加提示
                             const noOption = document.createElement('option');
                             noOption.textContent = '無可用待辦事項';
+                            noOption.value = ''; // 保持選項無效
                             todoElement.appendChild(noOption);
                         } else {
+                            // 添加待辦事項選項
                             todos.forEach(todo => {
                                 const option = document.createElement('option');
                                 option.value = todo.id;
@@ -179,29 +184,30 @@
                                 todoElement.appendChild(option);
                             });
                         }
-    
-                        // 如果需要重置檔案列表
+
+                        // 若需要重置檔案列表
                         if (resetFiles) {
-                            todoElement.value = ""; // 重置為「全部待辦事項」
+                            todoElement.value = ""; // 重置選擇
                             updateFiles();
                         }
                     })
-                    .catch(error => console.error('Error fetching todos:', error));
+                    .catch(error => {
+                        console.error('Error fetching todos:', error);
+                    });
             }
-    
+
             // 更新檔案列表
             function updateFiles() {
                 const selectedCategory = categorySelect.value;
                 const selectedTodoId = todoSelect.value;
-    
+
+                // AJAX 請求獲取檔案
                 fetch(`/get_files?category=${encodeURIComponent(selectedCategory)}&todo_id=${encodeURIComponent(selectedTodoId)}`)
                     .then(response => response.json())
                     .then(files => {
-                        filesTable.innerHTML = '';
+                        filesTableBody.innerHTML = ''; // 清空表格
                         if (files.length === 0) {
-                            const noFilesRow = document.createElement('tr');
-                            noFilesRow.innerHTML = '<td colspan="4" class="text-center text-muted">尚未新增檔案</td>';
-                            filesTable.appendChild(noFilesRow);
+                            filesTableBody.innerHTML = noFilesMessage; // 顯示無檔案訊息
                         } else {
                             files.forEach(file => {
                                 const row = document.createElement('tr');
@@ -211,25 +217,30 @@
                                     <td>${file.category}</td>
                                     <td>${file.content}</td>
                                 `;
-                                filesTable.appendChild(row);
+                                filesTableBody.appendChild(row);
                             });
                         }
                     })
-                    .catch(error => console.error('Error fetching files:', error));
+                    .catch(error => {
+                        console.error('Error fetching files:', error);
+                        filesTableBody.innerHTML = noFilesMessage; // 顯示無檔案訊息
+                    });
             }
-    
-            // 綁定上方篩選事件
+
+            // 綁定篩選的分類事件
             categorySelect.addEventListener('change', function () {
                 updateTodos(categorySelect, todoSelect, true);
             });
+
+            // 綁定待辦事項改變時的檔案更新
             todoSelect.addEventListener('change', updateFiles);
-    
-            // 綁定下方新增檔案區域事件
+
+            // 綁定新增檔案分類事件
             uploadCategorySelect.addEventListener('change', function () {
                 updateTodos(uploadCategorySelect, uploadTodoSelect, false);
             });
-    
-            // 頁面初始化時執行
+
+            // 初始化時載入數據
             updateTodos(categorySelect, todoSelect, true);
             updateTodos(uploadCategorySelect, uploadTodoSelect, false);
             updateFiles();

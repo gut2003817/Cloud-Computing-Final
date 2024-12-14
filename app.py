@@ -7,15 +7,7 @@ import io
 from flask import send_file, jsonify
 import os
 from werkzeug.utils import secure_filename
-from google.cloud import storage
-import os
 
-GCS_BUCKET = os.getenv('GCS_BUCKET')
-GCS_KEY_FILE = os.getenv('GCS_KEY_FILE')
-
-# 初始化 GCS 客戶端
-storage_client = storage.Client.from_service_account_json(GCS_KEY_FILE)
-bucket = storage_client.bucket(GCS_BUCKET)
 
 
 app = Flask(__name__)
@@ -160,6 +152,7 @@ def update_last_activity():
         session.permanent = True  # 設定 session 為永久，以便配合 `permanent_session_lifetime`
         session.modified = True  # 確保活動時間更新
 
+# Add Todo
 @app.route('/add', methods=['POST'])
 def add_todo():
     if 'user_id' not in session:
@@ -176,18 +169,16 @@ def add_todo():
     db.session.add(new_todo)
     db.session.commit()
 
-    # 處理上傳檔案到 Google Cloud Storage
+    # 處理上傳檔案
     if 'files' in request.files:
         for file in request.files.getlist('files'):
             if file and file.filename:
-                # GCS 上傳
                 filename = secure_filename(file.filename)
-                blob = bucket.blob(filename)
-                blob.upload_from_file(file)
-                file_url = f"https://storage.googleapis.com/{GCS_BUCKET}/{filename}"
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
 
-                # 儲存到資料庫
-                new_file = File(filename=filename, filepath=file_url, todo_id=new_todo.id)
+                # 將檔案資訊存入資料庫
+                new_file = File(filename=filename, filepath=filepath, todo_id=new_todo.id)
                 db.session.add(new_file)
         db.session.commit()
 
@@ -293,11 +284,12 @@ def files_page():
 @app.route('/get_todos', methods=['GET'])
 def get_todos():
     if 'user_id' not in session:
-        return jsonify([])
+        return jsonify([])  # 若未登入，返回空列表
 
-    category = request.args.get('category')
+    category = request.args.get('category', '')  # 接收前端傳遞的分類
     user_id = session['user_id']
 
+    # 查詢用戶的待辦事項
     todos_query = Todo.query.filter_by(user_id=user_id)
     if category:
         todos_query = todos_query.filter_by(category=category)
@@ -312,9 +304,10 @@ def get_files():
         return jsonify([])
 
     user_id = session['user_id']
-    category = request.args.get('category')
-    todo_id = request.args.get('todo_id')
+    category = request.args.get('category', '')
+    todo_id = request.args.get('todo_id', '')
 
+    # 根據分類與待辦事項篩選檔案
     files_query = File.query.join(Todo).filter(Todo.user_id == user_id)
 
     if category:
@@ -331,7 +324,7 @@ def get_files():
     } for file in files]
 
     return jsonify(files_list)
-
+    
 # Delete Todo
 @app.route('/delete/<int:id>')
 def delete_todo(id):
@@ -395,21 +388,6 @@ def api_edit_todo(id):
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'更新失敗: {str(e)}'}), 500
 
-    # 新增上傳的檔案（若有）
-    new_files = request.files.getlist('files')
-    for f in new_files:
-        if f and f.filename:
-            filename = secure_filename(f.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            f.save(filepath)
-            new_file = File(filename=filename, filepath=filepath, todo_id=todo.id)
-            db.session.add(new_file)
-
-    try:
-        db.session.commit()
-        return jsonify({'status': 'success', 'message': '待辦事項已成功更新'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': f'更新失敗: {str(e)}'}), 500
 
 @app.route('/category/<string:category>', methods=['GET', 'POST'])
 def category_page(category):
