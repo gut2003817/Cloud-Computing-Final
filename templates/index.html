@@ -189,12 +189,7 @@
                                     {% endif %}
                                 </span><br>
                                 <small class="{% if todo.is_overdue %}text-danger{% else %}text-muted{% endif %}">
-                                    截止日期：
-                                    {% if todo.due_date %}
-                                        {{ todo.due_date.strftime('%Y-%m-%d %H:%M:%S') }}
-                                    {% else %}
-                                        無截止日期
-                                    {% endif %}
+                                    截止日期：{{ todo.due_date.strftime('%Y-%m-%d %H:%M:%S') }}
                                 </small>
                                 {% if matched_files|length > 0 %}
                                 <div class="mt-2">

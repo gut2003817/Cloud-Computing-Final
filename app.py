@@ -453,61 +453,6 @@ def export():
         as_attachment=True
     )
 
-@app.route('/upload_file/<int:todo_id>', methods=['POST'])
-def upload_file(todo_id):
-    if 'user_id' not in session:
-        return jsonify({'status': 'error', 'message': '未登入'}), 403
-    
-    todo = Todo.query.get_or_404(todo_id)
-    if todo.user_id != session['user_id']:
-        return jsonify({'status': 'error', 'message': '無權限'}), 403
-
-    if 'files' in request.files:
-        for file in request.files.getlist('files'):
-            if file and file.filename:
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
-
-                new_file = File(filename=filename, filepath=filepath, todo_id=todo_id)
-                db.session.add(new_file)
-        db.session.commit()
-        return jsonify({'status': 'success', 'message': '檔案已上傳'})
-
-    return jsonify({'status': 'error', 'message': '無檔案'}), 400
-
-@app.route('/delete_file/<int:file_id>', methods=['DELETE'])
-def delete_file(file_id):
-    if 'user_id' not in session:
-        return jsonify({'status': 'error', 'message': '未登入'}), 403
-
-    file = File.query.get_or_404(file_id)
-    if file.todo.user_id != session['user_id']:
-        return jsonify({'status': 'error', 'message': '無權限'}), 403
-
-    os.remove(file.filepath)  # 刪除實體檔案
-    db.session.delete(file)
-    db.session.commit()
-    return jsonify({'status': 'success', 'message': '檔案已刪除'})
-
-@app.route('/view_file/<int:file_id>')
-def view_file(file_id):
-    if 'user_id' not in session:
-        flash("請先登入", "danger")
-        return redirect(url_for('login'))
-
-    file = File.query.get(file_id)
-    if not file or file.todo.user_id != session['user_id']:
-        flash("無權限檢視該檔案", "danger")
-        return redirect(url_for('files_page'))
-
-    # 確認檔案存在
-    if not os.path.exists(file.filepath):
-        flash("檔案不存在", "danger")
-        return redirect(url_for('files_page'))
-
-    return send_file(file.filepath)
-
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
