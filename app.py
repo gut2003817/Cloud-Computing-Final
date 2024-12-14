@@ -7,7 +7,15 @@ import io
 from flask import send_file, jsonify
 import os
 from werkzeug.utils import secure_filename
+from google.cloud import storage
+import os
 
+GCS_BUCKET = os.getenv('GCS_BUCKET')
+GCS_KEY_FILE = os.getenv('GCS_KEY_FILE')
+
+# 初始化 GCS 客戶端
+storage_client = storage.Client.from_service_account_json(GCS_KEY_FILE)
+bucket = storage_client.bucket(GCS_BUCKET)
 
 
 app = Flask(__name__)
@@ -152,7 +160,6 @@ def update_last_activity():
         session.permanent = True  # 設定 session 為永久，以便配合 `permanent_session_lifetime`
         session.modified = True  # 確保活動時間更新
 
-# Add Todo
 @app.route('/add', methods=['POST'])
 def add_todo():
     if 'user_id' not in session:
@@ -169,16 +176,18 @@ def add_todo():
     db.session.add(new_todo)
     db.session.commit()
 
-    # 處理上傳檔案
+    # 處理上傳檔案到 Google Cloud Storage
     if 'files' in request.files:
         for file in request.files.getlist('files'):
             if file and file.filename:
+                # GCS 上傳
                 filename = secure_filename(file.filename)
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
+                blob = bucket.blob(filename)
+                blob.upload_from_file(file)
+                file_url = f"https://storage.googleapis.com/{GCS_BUCKET}/{filename}"
 
-                # 將檔案資訊存入資料庫
-                new_file = File(filename=filename, filepath=filepath, todo_id=new_todo.id)
+                # 儲存到資料庫
+                new_file = File(filename=filename, filepath=file_url, todo_id=new_todo.id)
                 db.session.add(new_file)
         db.session.commit()
 

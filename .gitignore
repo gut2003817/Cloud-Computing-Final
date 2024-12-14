@@ -1,2 +1,11 @@
-uploads/*
-!uploads/.gitkeep
+# 忽略上傳的檔案
+uploads/
+*.db
+.env
+*.json
+
+cloud/
+
+# Python 緩存與中間文件
+__pycache__/
+*.pyc
