@@ -401,13 +401,29 @@ def category_page(category):
     todos = Todo.query.filter_by(user_id=user.id, category=category).order_by(Todo.due_date.asc().nulls_last(), Todo.date_created.asc()).all()
 
     if request.method == 'POST':
+        # 接收表單資料
         content = request.form['content']
         due_date_str = request.form.get('due_date')
-        # 使用正確的解析格式
         due_date = datetime.strptime(due_date_str, '%Y-%m-%dT%H:%M') if due_date_str else None
+
+        # 新增待辦事項
         new_todo = Todo(content=content, due_date=due_date, user_id=user.id, category=category)
         db.session.add(new_todo)
         db.session.commit()
+
+        # 處理上傳的檔案
+        if 'files' in request.files:
+            for file in request.files.getlist('files'):
+                if file and file.filename:
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(filepath)
+
+                    # 新增檔案到資料庫
+                    new_file = File(filename=filename, filepath=filepath, todo_id=new_todo.id)
+                    db.session.add(new_file)
+            db.session.commit()
+
         return redirect(url_for('category_page', category=category))
 
     show_score_calculator = (category == '考試')
@@ -417,7 +433,7 @@ def category_page(category):
         username=user.username,
         category=category,
         show_score_calculator=show_score_calculator
-    )    
+    )  
 
 
 @app.route('/complete/<int:id>')

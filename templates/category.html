@@ -67,7 +67,7 @@
 
         <!-- 代辦事項區域 -->
         <div id="todoSection">
-            <form action="" method="POST" class="mb-3">
+            <form action="" method="POST" enctype="multipart/form-data" class="mb-3">
                 <div class="input-group mb-3">
                     <input type="text" name="content" class="form-control" placeholder="輸入待辦事項" required>
                 </div>
@@ -81,7 +81,13 @@
                         {% if todo and todo.due_date %}value="{{ todo.due_date.strftime('%Y-%m-%dT%H:%M') }}"{% endif %}
                     >
                 </div>
-                
+            
+                <!-- 新增檔案上傳欄位 -->
+                <div class="form-group mb-3">
+                    <label for="files" class="form-label">上傳檔案（可多選）</label>
+                    <input type="file" id="files" name="files" multiple class="form-control">
+                </div>
+            
                 <div class="d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary">新增</button>
                 </div>
