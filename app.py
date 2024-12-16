@@ -54,7 +54,9 @@ def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
 
-    user = User.query.get(session['user_id'])
+    # user = User.query.get(session['user_id'])
+    user = db.session.get(User, session['user_id'])
+
     if not user:
         return redirect(url_for('login'))
 
