@@ -14,11 +14,12 @@
             align-items: center;
             height: 100vh;
             transition: background-color 0.3s ease; /* 平滑背景切換效果 */
-            background-image: url('static/images/back.jpg'); /* 替換為你的背景圖片 URL */
-            background-size: 90%; /* 將背景圖片縮小為50% */
+            background-image: url('static/images/back2.jpg'); /* 替換為你的背景圖片 URL */
+            background-size: 30%; /* 將背景圖片縮小為50% */
             background-position: center; /* 居中圖片 */
             font-family: 'Noto Sans TC', sans;
             font-weight: 900; /* 設定為最重字體 */
+            padding-top: 50px; /* 給 body 加上內邊距，避免被頂部文字遮住 */
         }
         .container {
             background-color: #ffffff;
@@ -27,9 +28,24 @@
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
             max-width: 400px;
         }
+        .top-banner {
+            color: #7e7878; /* 白色文字 */
+            padding: 70px 0; /* 上下內邊距 */
+            font-size: 3.5rem; /* 字體大小 */
+            font-weight: 700; /* 字體加粗 */
+            position: fixed; /* 固定在頁面最上方 */
+            top: 0; /* 頂部對齊 */
+            left: 0;
+            width: 100%; /* 寬度占滿全頁 */
+            z-index: 999; /* 確保顯示在最上層 */
+        }
     </style>
 </head>
+
 <body>
+    <div class="top-banner text-center">
+        <p>To do list (right now !!!)</p>
+    </div>
     <div class="container">
         <h2 class="text-center">登入</h2>
         {% with messages = get_flashed_messages() %}
